@@ -2,15 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================= Scroll reveal ================= */
   const sr = document.querySelectorAll('.sr');
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        io.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.15 });
-  sr.forEach(el => io.observe(el));
+  if (sr.length) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    sr.forEach(el => io.observe(el));
+  }
 
   /* ================= Parallax ================= */
   const bg = document.querySelector('.parallax .bg');
@@ -39,24 +42,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 10) {
-      header.classList.add('scrolled');
-    } else {
-      header.classList.remove('scrolled');
-    }
-  });
+  if (header) {
+    window.addEventListener('scroll', () => {
+      header.classList.toggle('scrolled', window.scrollY > 10);
+    });
+  }
 
   /* ================= Fade-in ================= */
   const faders = document.querySelectorAll('.fade-in');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-      }
+  if (faders.length) {
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
     });
-  });
-  faders.forEach(el => observer.observe(el));
+    faders.forEach(el => observer.observe(el));
+  }
 
   /* ================= FAB ================= */
   const fab = document.getElementById('fab');
@@ -65,83 +69,85 @@ document.addEventListener('DOMContentLoaded', () => {
     const fabMain = fab.querySelector('.fab-main');
     const STORAGE_KEY = 'bridgemen_fab_seen';
 
-    if (fabMain) {
-      fabMain.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        fab.classList.toggle('open');
-      });
+    fabMain?.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      fab.classList.toggle('open');
+    });
 
-      document.addEventListener('click', (e) => {
-        if (!fab.contains(e.target)) {
-          fab.classList.remove('open');
-        }
-      });
-
-      if (!localStorage.getItem(STORAGE_KEY)) {
-        setTimeout(() => {
-          fab.classList.add('open');
-          localStorage.setItem(STORAGE_KEY, 'true');
-        }, 1200);
+    document.addEventListener('click', e => {
+      if (!fab.contains(e.target)) {
+        fab.classList.remove('open');
       }
+    });
 
-    } else {
-      console.warn('FAB main button not found');
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      setTimeout(() => {
+        fab.classList.add('open');
+        localStorage.setItem(STORAGE_KEY, 'true');
+      }, 1200);
     }
-  } else {
-    console.warn('FAB container not found');
   }
 
-  /* ================= CONTACT FORM (Cloudflare Worker + Spinner + Popup + Redirect) ================= */
-  document.querySelector(".contact-form").addEventListener("submit", async function(e){
-    e.preventDefault();
+  /* ================= CONTACT FORM ================= */
+  const contactForm = document.querySelector('.contact-form');
 
-    const overlay = document.getElementById("loading-overlay");
-    const popup = document.getElementById("success-popup");
+  if (contactForm) {
+    contactForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
 
-    overlay.style.display = "flex";
+      const overlay = document.getElementById('loading-overlay');
+      const popup = document.getElementById('success-popup');
+      const submitBtn = this.querySelector('button[type="submit"]');
 
-    const formData = new FormData(this);
+      overlay && (overlay.style.display = 'flex');
+      submitBtn && (submitBtn.disabled = true);
 
-    try {
-      const response = await fetch("https://bridgemen-email.vijay-509.workers.dev/", {
-        method: "POST",
-        body: formData
-      });
+      const formData = new FormData(this);
 
-      const result = await response.json();
-      overlay.style.display = "none";
+      try {
+        const response = await fetch(
+          'https://bridgemen-email.vijay-509.workers.dev/',
+          { method: 'POST', body: formData }
+        );
 
-      if (result.status === "success") {
+        const result = await response.json();
 
-        popup.style.display = "flex";
+        overlay && (overlay.style.display = 'none');
+        submitBtn && (submitBtn.disabled = false);
 
-        setTimeout(() => {
-          popup.style.display = "none";
-          window.location.href = "contact.html";
-        }, 3000);
+        if (result.status === 'success') {
+          popup && (popup.style.display = 'flex');
 
-      } else {
-        showToast("Error: " + result.message, "error");
+          setTimeout(() => {
+            popup && (popup.style.display = 'none');
+            window.location.href = 'contact.html';
+          }, 3000);
+        } else {
+          showToast(result.message || 'Something went wrong', 'error');
+        }
+
+      } catch (err) {
+        overlay && (overlay.style.display = 'none');
+        submitBtn && (submitBtn.disabled = false);
+        showToast('Network error. Please try again.', 'error');
       }
-
-    } catch (err) {
-      overlay.style.display = "none";
-      showToast("Network error. Try again.", "error");
-    }
-  });
+    });
+  }
 
   /* ================= Toast helper ================= */
-  function showToast(msg, type="success") {
-    const toast = document.createElement("div");
-    toast.className = "toast " + type;
-    toast.innerHTML = msg;
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
 
-    const container = document.getElementById("toast-container");
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.opacity = "0";
+      toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
